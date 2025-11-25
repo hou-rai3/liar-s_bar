@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LIAR'S BAR - Manager (BLE)</title>
+    <style>
+        /* --- CSS Variables & Reset --- */
+        :root {
+            --bg-color: #1a1a1a;
+            --panel-color: #2c241b; /* Dark Wood */
+            --accent-red: #8a0e0e;
+            --accent-gold: #c5a059;
+            --text-color: #e0dacc;
+            --font-main: 'Courier New', Courier, monospace;
+            --status-connected: #4caf50;
+            --status-disconnected: #f44336;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-main);
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            background-image: radial-gradient(circle at center, #2a2a2a 0%, #000000 100%);
+        }
+
+        /* --- Container & Layout --- */
+        #app {
+            width: 100%;
+            max-width: 500px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            position: relative;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--accent-gold);
+            font-size: 2.5rem;
+            margin: 0;
+            text-shadow: 2px 2px 4px #000;
+            letter-spacing: 2px;
+            border-bottom: 2px solid var(--accent-red);
+            padding-bottom: 10px;
+        }
+
+        /* --- Panels --- */
+        .panel {
+            background: var(--panel-color);
+            border: 2px solid #3e3226;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+
+        /* --- Buttons --- */
+        button {
+            background: #3e3226;
+            color: var(--accent-gold);
+            border: 2px solid var(--accent-gold);
+            padding: 10px 20px;
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+        }
+
+        button:active {
+            transform: scale(0.98);
+            background: var(--accent-gold);
+            color: #000;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            filter: grayscale(100%);
+        }
+
+        .btn-large {
+            width: 100%;
+            font-size: 1.2rem;
+            padding: 15px;
+            margin-top: 10px;
+        }
+
+        .btn-danger {
+            background-color: var(--accent-red);
+            color: white;
+            border-color: #ff4444;
+            font-size: 1.5rem;
+            letter-spacing: 3px;
+        }
+
+        .btn-danger:active {
+            background-color: #ff0000;
+        }
+
+        .btn-ble {
+            border-color: #4a90e2;
+            color: #4a90e2;
+            font-size: 0.9rem;
+            margin-top: 20px;
+            width: 100%;
+        }
+        
+        .btn-ble.connected {
+            background-color: #4a90e2;
+            color: white;
+        }
+
+        /* --- Setup Screen --- */
+        .setup-group {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+        }
+
+        .setup-group label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+        /* --- Game Screen Elements --- */
+        #table-card-display {
+            text-align: center;
+            font-size: 3rem;
+            font-weight: bold;
+            color: var(--accent-gold);
+            padding: 20px;
+            border: 3px double var(--accent-gold);
+            margin-bottom: 10px;
+            background: #000;
+            animation: fadeIn 0.5s;
+        }
+
+        .card-label {
+            font-size: 1rem;
+            color: #888;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        /* Player List */
+        .player-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .player-card {
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border: 1px solid #555;
+            text-align: center;
+            position: relative;
+        }
+
+        .player-card.dead {
+            opacity: 0.4;
+            text-decoration: line-through;
+            border-color: var(--accent-red);
+            background: rgba(50, 0, 0, 0.3);
+        }
+
+        .player-card.dead::after {
+            content: "DEAD";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-15deg);
+            color: var(--accent-red);
+            font-size: 1.5rem;
+            font-weight: bold;
+            border: 2px solid var(--accent-red);
+            padding: 2px 5px;
+            text-decoration: none;
+        }
+
+        /* Gun Control */
+        .gun-control {
+            text-align: center;
+        }
+
+        select {
+            width: 100%;
+            padding: 10px;
+            background: #000;
+            color: var(--text-color);
+            border: 1px solid var(--accent-gold);
+            font-family: inherit;
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+        }
+
+        /* Cylinder Visual (Simple) */
+        .cylinder-status {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin: 10px 0;
+        }
+        .chamber {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #444;
+            border: 1px solid #000;
+        }
+        .chamber.active {
+            background: var(--accent-gold);
+            box-shadow: 0 0 5px var(--accent-gold);
+        }
+
+        /* Log Area */
+        #game-log {
+            height: 100px;
+            overflow-y: auto;
+            background: #000;
+            border: 1px solid #444;
+            padding: 10px;
+            font-size: 0.9rem;
+            color: #aaa;
+            font-family: monospace;
+            margin-top: 10px;
+        }
+        .log-entry { margin-bottom: 4px; }
+        .log-bang { color: var(--accent-red); font-weight: bold; font-size: 1.1em; }
+        .log-click { color: #88cc88; }
+        .log-info { color: var(--accent-gold); }
+        .log-sys  { color: #4a90e2; }
+
+        /* Settings & BLE Status */
+        .settings {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 10px;
+        }
+        input[type="range"] {
+            accent-color: var(--accent-gold);
+        }
+        
+        .ble-status-indicator {
+            position: absolute;
+            top: 25px;
+            right: 25px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--status-disconnected);
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+            transition: background-color 0.3s;
+        }
+        .ble-status-indicator.connected {
+            background-color: var(--status-connected);
+            box-shadow: 0 0 8px var(--status-connected);
+        }
+
+        /* Animations */
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+
+        .screen-shake {
+            animation: shake 0.5s;
+        }
+
+        .hidden { display: none !important; }
+
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div id="ble-indicator" class="ble-status-indicator" title="Controller Status"></div>
+    <h1>LIAR'S BAR</h1>
+
+    <!-- SETUP SCREEN -->
+    <div id="screen-setup" class="panel">
+        <h2 style="text-align: center; color: var(--accent-gold);">SETUP</h2>
+        <p style="text-align: center;">プレイヤー人数を選択</p>
+        <div class="setup-group">
+            <label><input type="radio" name="playerCount" value="2" checked> 2人</label>
+            <label><input type="radio" name="playerCount" value="3"> 3人</label>
+            <label><input type="radio" name="playerCount" value="4"> 4人</label>
+        </div>
+        
+        <!-- BLE Connect Button -->
+        <button id="btn-connect-ble" class="btn-ble" onclick="bleManager.connect()">CONNECT GUN CONTROLLER</button>
+        
+        <button class="btn-large" onclick="game.startSetup()">GAME START</button>
+    </div>
+
+    <!-- GAME SCREEN -->
+    <div id="screen-game" class="panel hidden">
+        <!-- Table Card Section -->
+        <div>
+            <span class="card-label">CURRENT TABLE</span>
+            <div id="table-card-display">?</div>
+        </div>
+
+        <!-- Gun Control Section -->
+        <div class="gun-control panel" style="border-color: var(--accent-red);">
+            <div class="cylinder-status" id="cylinder-visual">
+                <!-- JS will populate chambers -->
+            </div>
+            <label class="card-label">WHO PULLS THE TRIGGER?</label>
+            <select id="target-player-select"></select>
+            <button id="btn-trigger" class="btn-large btn-danger" onclick="game.pullTrigger()">TRIGGER</button>
+        </div>
+
+        <!-- Player Status -->
+        <div id="player-list-container" class="player-list">
+            <!-- Player Cards injected here -->
+        </div>
+
+        <!-- Next Round Button -->
+        <button id="btn-next-round" class="btn-large" onclick="game.nextRound()">NEXT ROUND (New Table)</button>
+
+        <!-- Log -->
+        <div id="game-log"></div>
+
+        <!-- Settings -->
+        <div class="settings">
+            <span>Sound Volume</span>
+            <input type="range" id="volume-control" min="0" max="1" step="0.1" value="0.5">
+        </div>
+    </div>
+</div>
+
+<script>
+    /**
+     * LIAR'S BAR GAME MANAGER with BLE Support
+     * 設計：高専ロボコンチームリーダー向け仕様
+     */
+    
+    // --- Audio System (Placeholder Logic) ---
+    const SOUNDS = {
+        click: new Audio('click.mp3'),
+        bang: new Audio('bang.mp3')
+    };
+    
+    Object.values(SOUNDS).forEach(audio => {
+        audio.onerror = () => console.warn("Audio file not found. Place click.mp3 and bang.mp3 in the root.");
+    });
+
+    const CARDS = ['QUEEN', 'KING', 'ACE'];
+
+    // --- BLE Manager Class ---
+    class BLEManager {
+        constructor() {
+            this.device = null;
+            this.characteristic = null;
+            // Buckshot Rouletteと同じUUID定義
+            this.SERVICE_UUID = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
+            this.CHARACTERISTIC_UUID = 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
+        }
+
+        async connect() {
+            try {
+                game.log("Requesting BLE Device...", "log-sys");
+                this.device = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: [this.SERVICE_UUID] }]
+                });
+
+                this.device.addEventListener('gattserverdisconnected', this.onDisconnected.bind(this));
+
+                const server = await this.device.gatt.connect();
+                const service = await server.getPrimaryService(this.SERVICE_UUID);
+                this.characteristic = await service.getCharacteristic(this.CHARACTERISTIC_UUID);
+
+                await this.characteristic.startNotifications();
+                this.characteristic.addEventListener('characteristicvaluechanged', this.handleNotifications.bind(this));
+
+                this.updateStatus(true);
+                game.log("Controller Connected!", "log-sys");
+                
+                const btn = document.getElementById('btn-connect-ble');
+                btn.textContent = "CONTROLLER CONNECTED";
+                btn.classList.add('connected');
+                btn.disabled = true; // Prevent double connection
+
+            } catch (error) {
+                console.error("BLE Error:", error);
+                game.log(`BLE Connect Failed: ${error.name}`, "log-sys");
+            }
+        }
+
+        onDisconnected() {
+            this.updateStatus(false);
+            game.log("Controller Disconnected.", "log-sys");
+            
+            const btn = document.getElementById('btn-connect-ble');
+            btn.textContent = "RECONNECT GUN CONTROLLER";
+            btn.classList.remove('connected');
+            btn.disabled = false;
+            
+            this.characteristic = null;
+        }
+
+        handleNotifications(event) {
+            const value = event.target.value;
+            const decoder = new TextDecoder('utf-8');
+            const command = decoder.decode(value);
+
+            // コマンド解析
+            if (command === 'fire') {
+                // ゲーム側のトリガー関数を呼び出し
+                // ボタンの無効化状態などを考慮して実行
+                const triggerBtn = document.getElementById('btn-trigger');
+                if (!triggerBtn.disabled && !game.isGameOver) {
+                    game.pullTrigger();
+                } else {
+                    console.log("Trigger ignored (Game locked/over)");
+                }
+            }
+        }
+
+        updateStatus(isConnected) {
+            const indicator = document.getElementById('ble-indicator');
+            if (isConnected) {
+                indicator.classList.add('connected');
+            } else {
+                indicator.classList.remove('connected');
+            }
+        }
+    }
+
+    const bleManager = new BLEManager();
+
+
+    // --- Game Logic Class ---
+    class LiarsBarGame {
+        constructor() {
+            this.players = [];
+            this.bulletPosition = 0; // 0-5
+            this.currentChamber = 0; // 0-5
+            this.isGameOver = false;
+        }
+
+        // --- Core Logic ---
+
+        init(playerCount) {
+            this.players = [];
+            for (let i = 1; i <= playerCount; i++) {
+                this.players.push({ id: i, name: `Player ${i}`, alive: true });
+            }
+            this.resetGun();
+            this.updateUI();
+            this.log("GAME STARTED.");
+            this.nextRound();
+        }
+
+        resetGun() {
+            this.bulletPosition = Math.floor(Math.random() * 6);
+            this.currentChamber = 0;
+            this.log(`Gun loaded. (Cylinder Reset)`, 'log-info');
+            this.renderCylinder();
+        }
+
+        nextRound() {
+            if (this.checkWinner()) return;
+
+            const card = CARDS[Math.floor(Math.random() * CARDS.length)];
+            const display = document.getElementById('table-card-display');
+            
+            display.style.opacity = 0;
+            setTimeout(() => {
+                display.innerText = card;
+                display.style.opacity = 1;
+                if (card === 'QUEEN') display.style.color = '#e91e63'; 
+                if (card === 'KING') display.style.color = '#c5a059'; 
+                if (card === 'ACE') display.style.color = '#fff';     
+            }, 200);
+
+            this.log(`New Table: ${card}`, 'log-info');
+        }
+
+        pullTrigger() {
+            if (this.isGameOver) return;
+
+            const select = document.getElementById('target-player-select');
+            const playerId = parseInt(select.value);
+            const playerIndex = this.players.findIndex(p => p.id === playerId);
+            
+            if (playerIndex === -1 || !this.players[playerIndex].alive) return;
+
+            const btn = document.getElementById('btn-trigger');
+            btn.disabled = true;
+
+            // 物理トリガーで画面が揺れる演出
+            document.body.classList.add('screen-shake');
+
+            const isLiveRound = (this.currentChamber === this.bulletPosition);
+
+            if (isLiveRound) {
+                // BANG
+                this.playSound('bang');
+                this.log(`BANG!!! ${this.players[playerIndex].name} is ELIMINATED.`, 'log-bang');
+                this.players[playerIndex].alive = false;
+                this.resetGun();
+            } else {
+                // CLICK
+                this.playSound('click');
+                this.log(`Click... (Blank). Cylinder rotates.`, 'log-click');
+                this.currentChamber = (this.currentChamber + 1) % 6;
+            }
+
+            // シェイクアニメーション終了用
+            setTimeout(() => document.body.classList.remove('screen-shake'), 500);
+
+            this.renderCylinder();
+            this.updatePlayerList(); 
+            this.updateSelectOptions(); 
+
+            setTimeout(() => {
+                btn.disabled = false;
+                this.checkWinner();
+            }, 1000);
+        }
+
+        checkWinner() {
+            const survivors = this.players.filter(p => p.alive);
+            if (survivors.length <= 1) {
+                const winner = survivors[0];
+                const display = document.getElementById('table-card-display');
+                display.innerText = `${winner.name} WINS!`;
+                display.style.color = 'var(--accent-red)';
+                this.log(`GAME OVER. Winner: ${winner.name}`, 'log-info');
+                this.isGameOver = true;
+                document.getElementById('btn-trigger').disabled = true;
+                document.getElementById('btn-next-round').innerText = "RESTART GAME";
+                document.getElementById('btn-next-round').onclick = () => location.reload();
+                return true;
+            }
+            return false;
+        }
+
+        // --- UI Rendering ---
+
+        updateUI() {
+            this.updatePlayerList();
+            this.updateSelectOptions();
+            this.renderCylinder();
+        }
+
+        updatePlayerList() {
+            const container = document.getElementById('player-list-container');
+            container.innerHTML = '';
+            this.players.forEach(p => {
+                const div = document.createElement('div');
+                div.className = `player-card ${p.alive ? '' : 'dead'}`;
+                div.innerText = p.name;
+                container.appendChild(div);
+            });
+        }
+
+        updateSelectOptions() {
+            const select = document.getElementById('target-player-select');
+            const currentVal = select.value;
+            select.innerHTML = '';
+            this.players.filter(p => p.alive).forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.innerText = p.name;
+                select.appendChild(opt);
+            });
+            if (currentVal && Array.from(select.options).some(o => o.value === currentVal)) {
+                select.value = currentVal;
+            }
+        }
+
+        renderCylinder() {
+            const container = document.getElementById('cylinder-visual');
+            container.innerHTML = '';
+            for(let i=0; i<6; i++) {
+                const chamber = document.createElement('div');
+                chamber.className = `chamber ${i === this.currentChamber ? 'active' : ''}`;
+                container.appendChild(chamber);
+            }
+        }
+
+        log(msg, className = '') {
+            const logDiv = document.getElementById('game-log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${className}`;
+            entry.innerText = `> ${msg}`;
+            logDiv.prepend(entry);
+        }
+
+        playSound(type) {
+            const vol = document.getElementById('volume-control').value;
+            if (SOUNDS[type]) {
+                SOUNDS[type].volume = vol;
+                SOUNDS[type].currentTime = 0;
+                SOUNDS[type].play().catch(e => console.log("Audio play failed:", e));
+            }
+        }
+
+        startSetup() {
+            const radios = document.getElementsByName('playerCount');
+            let count = 2;
+            for (const r of radios) {
+                if (r.checked) count = parseInt(r.value);
+            }
+            
+            document.getElementById('screen-setup').classList.add('hidden');
+            document.getElementById('screen-game').classList.remove('hidden');
+            
+            this.init(count);
+        }
+    }
+
+    const game = new LiarsBarGame();
+
+    document.getElementById('volume-control').addEventListener('input', (e) => {
+        // Volume test logic if needed
+    });
+
+</script>
+</body>
+</html>

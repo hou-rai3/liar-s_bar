@@ -1,5 +1,4 @@
-Liar's Bar Manager (Real Life Edition)
-
+Liar's Bar()
 概要
 
 物理的なトランプと模擬銃を使用して行う対面パーティゲーム「Liar's Bar（実写版）」の進行管理・演出補助を行うWebアプリケーションである。

@@ -349,8 +349,8 @@
     
     // --- Audio System ---
     const SOUNDS = {
-        click: new Audio('click.mp3'),
-        bang: new Audio('bang.mp3')
+        click: new Audio('sounds/shoot-blank.mp3'),
+        bang: new Audio('sounds/shoot-live.mp3')
     };
     Object.values(SOUNDS).forEach(audio => {
         audio.onerror = () => console.warn("Audio file missing.");
